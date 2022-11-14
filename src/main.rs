@@ -1,14 +1,18 @@
-use std::{ env, fs, path::Path, ffi::OsStr };
+use std::{ env, fs, path::{Path, PathBuf} };
 fn main() {
     let args: Vec<String> = env::args().collect();
 
+    dbg!(&args);
+
     let config = Config::build(&args).expect("hoping the config builds correctly");
 
-    
+    dbg!(config);
+
 }
 
+#[derive(Debug)]
 struct Config {
-    file_paths: Vec<Box<&Path>>,
+    file_paths: Vec<PathBuf>,
 }
 
 impl Config {
@@ -16,34 +20,49 @@ impl Config {
         if args.len() != 2 {
             return Err("incorrect number of arguments");
         };
+        
         let path = Path::new(&args[1]);
-        let mut file_paths: Vec<Box<&Path>> = Vec::new(); 
+        let mut file_paths: Vec<PathBuf> = Vec::new(); 
 
         let metadata = match fs::metadata(path) {
             Ok(md) => md,
             // What if I want to return the actual error?
-            Err(_) => return Err("problem accesing filepath metadata"),
+            Err(error) => {
+                dbg!(error);
+                return Err("problem accesing filepath metadata")
+            },
         };
 
         // Check if the path is a file or a directory
         if metadata.is_file() {
 
+            let ext = match path.extension() {
+                Some(ext) => ext,
+                None => return Err("unable to access file extension")
+            };
+
             // If file, check that it is a .jack file and add to config
-            if path.extension().and_then(OsStr::to_str) == Some(".jack") {
-                file_paths.push(Box::new(path));
+            if ext == "jack" {
+                file_paths.push(path.to_path_buf());
             } else {
                 return Err("filename had incorrect extension")
             }
 
         } else {
-            // If directory, add all .jack files to config
-            let paths = fs::read_dir(path).expect("should be able to read directory");
-            for path in paths {
-                if path.expect("should have valid paths").extension().and_then(OsStr::to_str) == ".jack" {
-                    file_paths.push(Box::new(path));
-                }
-            }
+            // println!("Path is a directory!");
 
+            // If directory, add all .jack files to config
+            let paths = match fs::read_dir(path) {
+                Ok(paths) => paths,
+                Err(_) => return Err("unable to access directory")
+            };
+
+            // I need to access the extension of each path 
+            // how to do that in a functional paradigm?
+            file_paths = paths
+                .map(|path| path.unwrap().path())
+                .filter(|path| { path.is_file() && path.extension().unwrap() == "jack" })
+                .collect();
         }
 
         Ok(Config{ file_paths })
