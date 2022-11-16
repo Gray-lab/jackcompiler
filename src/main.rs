@@ -1,4 +1,4 @@
-use std::env;
+use std::{env};
 
 use jackcompiler::Config;
 fn main() {
@@ -10,5 +10,11 @@ fn main() {
 
     dbg!(config);
 
+    let text = String::from("{} () [] . , ; + - * & | < > = ~ /");
+    let mut iterator = text.chars();
+    while let Some(c) = iterator.next() {
+        println!("{:?}", c);
+    }
+    
 }
 
